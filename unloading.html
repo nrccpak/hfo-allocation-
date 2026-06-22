@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NRCC HFO Unloading Instructions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c232d; --line:#2a313c;
+    --ink:#e6edf3; --muted:#8b97a7; --faint:#5b6675;
+    --hfo:#e8a13a; --hfo-deep:#b9741a; --ok:#3fb950; --crit:#f85149;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:radial-gradient(1100px 500px at 80% -10%,rgba(232,161,58,.07),transparent 60%),var(--bg);
+    color:var(--ink);font-family:Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh}
+  .wrap{max-width:680px;margin:0 auto;padding:18px 16px 60px}
+
+  /* login */
+  #gate{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(900px 480px at 50% 0%,rgba(232,161,58,.10),transparent 60%),var(--bg);padding:24px}
+  .gate-card{width:100%;max-width:380px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:30px 26px}
+  .brand{display:flex;align-items:center;gap:10px;margin-bottom:22px}
+  .drop{width:26px;height:26px;flex:0 0 auto}
+  .gate-card h1{font-family:Oswald;font-weight:600;font-size:19px;letter-spacing:.04em;margin:0;text-transform:uppercase}
+  .role{font-family:'IBM Plex Mono';font-size:11px;color:var(--hfo);letter-spacing:.18em;margin-top:2px}
+  label.fld{display:block;font-size:12px;color:var(--muted);margin:0 0 7px}
+  input[type=password]{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--ink);
+    border-radius:8px;padding:11px 12px;font-size:15px;font-family:'IBM Plex Mono';outline:none}
+  input:focus{border-color:var(--hfo)}
+  .btn{cursor:pointer;border:none;border-radius:8px;font-family:Oswald;font-weight:600;letter-spacing:.06em;
+    text-transform:uppercase;font-size:14px;padding:12px 16px}
+  .btn-amber{background:var(--hfo);color:#1a1206}.btn-amber:hover{background:#f0ad48}
+  .btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--line)}
+  .btn-ghost:hover{color:var(--ink)}
+  .gate-err{color:var(--crit);font-size:13px;min-height:18px;margin-top:12px;font-family:'IBM Plex Mono'}
+
+  /* header */
+  header.bar{display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding-bottom:16px;border-bottom:1px solid var(--line);margin-bottom:20px}
+  .title{display:flex;align-items:center;gap:11px}
+  .title h1{font-family:Oswald;font-weight:600;text-transform:uppercase;letter-spacing:.05em;font-size:18px;margin:0;line-height:1.1}
+  .title .sub{font-size:10.5px;color:var(--hfo);letter-spacing:.2em;font-family:'IBM Plex Mono';margin-top:3px}
+  .asof{text-align:right;font-family:'IBM Plex Mono';font-size:11px;color:var(--muted)}
+  .asof b{display:block;color:var(--ink);font-size:14px}
+
+  .banner{font-family:'IBM Plex Mono';font-size:11px;letter-spacing:.06em;color:var(--muted);
+    background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 13px;margin-bottom:16px}
+  .banner b{color:var(--hfo)}
+
+  /* instruction cards — large for field readability */
+  .list{display:flex;flex-direction:column;gap:13px}
+  .card{display:flex;align-items:stretch;gap:0;background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;overflow:hidden;transition:.25s}
+  .card.done{opacity:.5}
+  .seq{flex:0 0 64px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:linear-gradient(180deg,var(--hfo),var(--hfo-deep));color:#1a1206}
+  .seq .n{font-family:Oswald;font-weight:700;font-size:30px;line-height:1}
+  .seq .l{font-family:'IBM Plex Mono';font-size:8.5px;letter-spacing:.14em;margin-top:2px}
+  .cbody{flex:1;padding:15px 16px;min-width:0}
+  .cbody .tank{font-family:Oswald;font-weight:600;font-size:24px;letter-spacing:.02em;line-height:1.05}
+  .cbody .dest{font-size:12px;color:var(--muted);font-family:'IBM Plex Mono';margin-top:3px}
+  .qty{margin-top:11px;display:flex;align-items:baseline;gap:8px}
+  .qty .big{font-family:Oswald;font-weight:700;font-size:34px;color:var(--hfo);line-height:1}
+  .qty .u{font-size:13px;color:var(--muted);font-family:'IBM Plex Mono'}
+  .cact{flex:0 0 auto;display:flex;align-items:center;padding:0 14px;border-left:1px solid var(--line)}
+  .tick{width:30px;height:30px;border-radius:7px;border:2px solid var(--faint);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;color:transparent;font-size:18px;transition:.15s;background:transparent}
+  .card.done .tick{border-color:var(--ok);color:var(--ok);background:rgba(63,185,80,.12)}
+
+  .empty{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:46px 24px;text-align:center}
+  .empty .ico{font-size:34px;display:block;margin-bottom:12px}
+  .empty .ok{color:var(--ok)} .empty .wait{color:var(--muted)}
+  .empty .et{font-family:Oswald;font-weight:600;font-size:18px;letter-spacing:.03em}
+  .empty .es{font-size:13px;color:var(--muted);margin-top:8px;font-family:'IBM Plex Mono';line-height:1.6}
+
+  .foot{margin-top:22px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .legend{font-size:10.5px;color:var(--faint);font-family:'IBM Plex Mono';letter-spacing:.04em}
+  .loading{padding:50px;text-align:center;color:var(--muted);font-family:'IBM Plex Mono'}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="gate">
+  <div class="gate-card">
+    <div class="brand">
+      <svg class="drop" viewBox="0 0 24 24" fill="none"><path d="M12 2.5C12 2.5 5 10.2 5 15a7 7 0 0014 0c0-4.8-7-12.5-7-12.5z" fill="#e8a13a"/></svg>
+      <div><h1>HFO Unloading</h1><div class="role">Offloading Team · PIC</div></div>
+    </div>
+    <label class="fld" for="pw">Team password</label>
+    <input type="password" id="pw" autocomplete="off" placeholder="••••••••">
+    <div style="margin-top:16px"><button class="btn btn-amber" style="width:100%" id="loginBtn">Open instructions</button></div>
+    <div class="gate-err" id="gateErr"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="wrap" id="app" style="display:none">
+  <header class="bar">
+    <div class="title">
+      <svg class="drop" viewBox="0 0 24 24" fill="none"><path d="M12 2.5C12 2.5 5 10.2 5 15a7 7 0 0014 0c0-4.8-7-12.5-7-12.5z" fill="#e8a13a"/></svg>
+      <div><h1>Unloading Instructions</h1><div class="sub">NRCC · TURAIF</div></div>
+    </div>
+    <div class="asof">For reading<b id="asOf">—</b></div>
+  </header>
+
+  <div class="banner">Unload tankers in the <b>order shown</b>, top to bottom. Finish each tank's count before moving to the next.</div>
+
+  <div id="loading" class="loading">Loading today's plan…</div>
+  <div id="list" class="list"></div>
+
+  <div class="foot">
+    <span class="legend">Ticks are for your own tracking only — nothing is sent back.</span>
+    <button class="btn btn-ghost" id="refreshBtn" style="padding:8px 14px;font-size:12px">Refresh</button>
+  </div>
+</div>
+
+<script>
+/*=================  PASTE YOUR APPS SCRIPT /exec URL HERE  =================*/
+const API_URL = 'https://script.google.com/macros/s/AKfycbxJya6Y7FkN21OF0q3H7tswaSD28fvkW36L8kd1mkU5n37U08_Acw65wSV5P5jg0kvO/exec';
+/*=========================================================================*/
+
+const PW_HASH = 'b5b5318f392585f9733307a3ed9f9fbd2e354048f3cfe8d3ecbe9938345badda';
+
+async function loadPlan(){
+  document.getElementById('loading').style.display='block';
+  document.getElementById('list').innerHTML='';
+  try{
+    const r=await fetch(API_URL,{method:'GET'});
+    const d=await r.json();
+    if(!d.ok) throw new Error(d.error||'load failed');
+    document.getElementById('asOf').textContent=d.asOf;
+    render(d.asOf, d.todayPlan);
+  }catch(err){
+    document.getElementById('loading').innerHTML=
+      'Could not load instructions.<br><span style="color:var(--crit)">'+err.message+'</span>';
+  }
+}
+
+function render(asOf, plan){
+  document.getElementById('loading').style.display='none';
+  const list=document.getElementById('list');
+
+  if(!plan){
+    list.innerHTML=`<div class="empty"><span class="ico wait">⏳</span>
+      <div class="et">No plan published yet</div>
+      <div class="es">The Plant Director has not published instructions for<br><b style="color:var(--ink)">${asOf}</b> yet. Pull to refresh shortly.</div></div>`;
+    return;
+  }
+  if(!plan.items || plan.items.length===0){
+    list.innerHTML=`<div class="empty"><span class="ico ok">✓</span>
+      <div class="et">No unloading required</div>
+      <div class="es">All tanks are above their minimum levels for ${asOf}.<br>No tankers to direct today.</div></div>`;
+    return;
+  }
+
+  list.innerHTML=plan.items.map((it,i)=>`
+    <div class="card" data-i="${i}">
+      <div class="seq"><span class="n">${i+1}</span><span class="l">ORDER</span></div>
+      <div class="cbody">
+        <div class="tank">${it.name}</div>
+        <div class="dest">→ ${it.sub}</div>
+        <div class="qty"><span class="big">${it.tankers}</span><span class="u">tanker${it.tankers==1?'':'s'} · ≈ ${(it.tankers*27).toLocaleString()} t</span></div>
+      </div>
+      <div class="cact"><button class="tick" title="Mark done (local only)">✓</button></div>
+    </div>`).join('');
+
+  list.querySelectorAll('.card').forEach(card=>{
+    card.querySelector('.tick').addEventListener('click',()=>card.classList.toggle('done'));
+  });
+}
+
+/* login */
+async function sha256(s){
+  const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));
+  return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+async function tryLogin(){
+  if(await sha256(document.getElementById('pw').value)===PW_HASH){
+    document.getElementById('gate').style.display='none';
+    document.getElementById('app').style.display='block';
+    loadPlan();
+  }else{
+    document.getElementById('gateErr').textContent='Incorrect password.';
+    document.getElementById('pw').value='';
+  }
+}
+document.getElementById('loginBtn').addEventListener('click',tryLogin);
+document.getElementById('pw').addEventListener('keydown',e=>{if(e.key==='Enter')tryLogin();});
+document.getElementById('refreshBtn').addEventListener('click',loadPlan);
+window.addEventListener('load',()=>document.getElementById('pw').focus());
+</script>
+</body>
+</html>

@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NRCC HFO Allocation — Control</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c232d; --line:#2a313c;
+    --ink:#e6edf3; --muted:#8b97a7; --faint:#5b6675;
+    --hfo:#e8a13a; --hfo-deep:#b9741a;
+    --ok:#3fb950; --warn:#d6a121; --crit:#f85149;
+    --r:10px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:
+      radial-gradient(1100px 500px at 80% -10%, rgba(232,161,58,.07), transparent 60%),
+      var(--bg);
+    color:var(--ink); font-family:Inter,system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased; min-height:100vh;
+  }
+  .mono{font-family:'IBM Plex Mono',monospace}
+  .wrap{max-width:1080px;margin:0 auto;padding:20px 18px 64px}
+
+  /* ---------- login ---------- */
+  #gate{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(900px 480px at 50% 0%,rgba(232,161,58,.10),transparent 60%),var(--bg);padding:24px}
+  .gate-card{width:100%;max-width:380px;background:var(--panel);border:1px solid var(--line);
+    border-radius:14px;padding:30px 26px}
+  .gate-card .brand{display:flex;align-items:center;gap:10px;margin-bottom:22px}
+  .drop{width:26px;height:26px;flex:0 0 auto}
+  .gate-card h1{font-family:Oswald;font-weight:600;font-size:19px;letter-spacing:.04em;margin:0;text-transform:uppercase}
+  .gate-card .role{font-family:'IBM Plex Mono';font-size:11px;color:var(--hfo);letter-spacing:.18em;margin-top:2px}
+  label.fld{display:block;font-size:12px;color:var(--muted);margin:0 0 7px;letter-spacing:.02em}
+  input[type=password],input[type=text],input[type=number]{
+    width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--ink);
+    border-radius:8px;padding:11px 12px;font-size:15px;font-family:'IBM Plex Mono';outline:none}
+  input:focus{border-color:var(--hfo)}
+  .btn{cursor:pointer;border:none;border-radius:8px;font-family:Oswald;font-weight:600;
+    letter-spacing:.06em;text-transform:uppercase;font-size:14px;padding:12px 16px}
+  .btn-amber{background:var(--hfo);color:#1a1206}
+  .btn-amber:hover{background:#f0ad48}
+  .btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--line)}
+  .btn-ghost:hover{color:var(--ink);border-color:var(--faint)}
+  .gate-err{color:var(--crit);font-size:13px;min-height:18px;margin-top:12px;font-family:'IBM Plex Mono'}
+
+  /* ---------- header ---------- */
+  header.bar{display:flex;align-items:center;justify-content:space-between;gap:14px;
+    padding-bottom:18px;border-bottom:1px solid var(--line);margin-bottom:22px;flex-wrap:wrap}
+  .title{display:flex;align-items:center;gap:12px}
+  .title h1{font-family:Oswald;font-weight:600;text-transform:uppercase;letter-spacing:.05em;
+    font-size:20px;margin:0;line-height:1.1}
+  .title .sub{font-size:11px;color:var(--hfo);letter-spacing:.2em;font-family:'IBM Plex Mono';margin-top:3px}
+  .asof{text-align:right;font-family:'IBM Plex Mono';font-size:12px;color:var(--muted)}
+  .asof b{display:block;color:var(--ink);font-size:15px;font-weight:500}
+
+  .sect-h{font-family:Oswald;text-transform:uppercase;letter-spacing:.1em;font-size:13px;
+    color:var(--muted);margin:30px 0 14px;display:flex;align-items:center;gap:10px}
+  .sect-h::before{content:"";width:18px;height:2px;background:var(--hfo);display:inline-block}
+
+  /* ---------- gauges ---------- */
+  .gauges{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  .gcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px 14px 16px;position:relative}
+  .gcard .gname{font-family:Oswald;font-weight:600;font-size:15px;letter-spacing:.03em}
+  .gcard .gsub{font-size:10.5px;color:var(--muted);margin-top:1px;letter-spacing:.04em;min-height:13px}
+  .gbody{display:flex;gap:12px;margin-top:12px;align-items:stretch}
+  .tube{position:relative;width:34px;flex:0 0 auto;height:150px;border:1px solid var(--line);
+    border-radius:6px;background:linear-gradient(180deg,#11161d,#0e1319);overflow:hidden}
+  .tube .dead{position:absolute;left:0;right:0;bottom:0;background:repeating-linear-gradient(
+    -45deg,rgba(91,102,117,.16),rgba(91,102,117,.16) 4px,transparent 4px,transparent 8px)}
+  .tube .fill{position:absolute;left:0;right:0;bottom:0;
+    background:linear-gradient(180deg,var(--hfo),var(--hfo-deep));transition:height .5s ease}
+  .tube .mark{position:absolute;left:-2px;right:-2px;height:0;border-top:1.5px dashed;}
+  .tube .mark.min{border-color:var(--crit)}
+  .tube .mark.ha{border-color:var(--warn);opacity:.7}
+  .tube .mark.hh{border-color:var(--warn)}
+  .greadout{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:space-between}
+  .lvl{font-family:'IBM Plex Mono';font-weight:600;font-size:23px;line-height:1}
+  .lvl small{font-size:12px;color:var(--muted);font-weight:400}
+  .gmeta{font-family:'IBM Plex Mono';font-size:10.5px;color:var(--muted);line-height:1.7}
+  .gmeta span{color:var(--ink)}
+  .chip{display:inline-block;font-family:Oswald;font-weight:600;font-size:11px;letter-spacing:.08em;
+    text-transform:uppercase;padding:3px 9px;border-radius:20px;margin-top:8px}
+  .chip.ok{background:rgba(63,185,80,.14);color:var(--ok)}
+  .chip.warn{background:rgba(214,161,33,.16);color:var(--warn)}
+  .chip.crit{background:rgba(248,81,73,.15);color:var(--crit)}
+
+  /* ---------- settings table ---------- */
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+  table{width:100%;border-collapse:collapse}
+  th{font-family:'IBM Plex Mono';font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;
+    color:var(--muted);text-align:left;padding:12px 14px;border-bottom:1px solid var(--line);font-weight:500}
+  td{padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:middle}
+  tr:last-child td{border-bottom:none}
+  .tk{font-family:Oswald;font-weight:600;font-size:15px}
+  .tk small{display:block;font-family:Inter;font-weight:400;font-size:10.5px;color:var(--muted);letter-spacing:.03em}
+  td input{width:78px;text-align:center;padding:8px 6px;font-size:14px}
+  td input.prio{width:58px}
+  .row-actions{display:flex;gap:12px;align-items:center;margin-top:16px;flex-wrap:wrap}
+
+  /* ---------- plan ---------- */
+  .plan-list{display:flex;flex-direction:column;gap:10px}
+  .pitem{display:flex;align-items:center;gap:14px;background:var(--panel);border:1px solid var(--line);
+    border-left:3px solid var(--hfo);border-radius:var(--r);padding:13px 15px}
+  .pno{font-family:Oswald;font-weight:700;font-size:22px;color:var(--hfo);width:26px;text-align:center;flex:0 0 auto}
+  .pmain{flex:1;min-width:0}
+  .pmain .pn{font-family:Oswald;font-weight:600;font-size:16px;letter-spacing:.02em}
+  .pmain .pd{font-size:11.5px;color:var(--muted);font-family:'IBM Plex Mono';margin-top:2px}
+  .pmain .pd b{color:var(--ink)}
+  .ptrim{color:var(--warn)}
+  .pqty{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+  .pqty label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-family:'IBM Plex Mono'}
+  .pqty input{width:62px;text-align:center;font-size:16px;font-weight:600}
+  .pqty .un{font-size:11px;color:var(--muted);font-family:'IBM Plex Mono'}
+  .empty{padding:30px;text-align:center;color:var(--muted);font-family:'IBM Plex Mono';font-size:13px}
+  .empty .ok-ico{color:var(--ok);font-size:24px;display:block;margin-bottom:8px}
+
+  /* ---------- toast ---------- */
+  #toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);
+    background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--ok);
+    border-radius:8px;padding:12px 18px;font-size:13.5px;opacity:0;pointer-events:none;
+    transition:.3s;z-index:60;max-width:90vw}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  #toast.err{border-left-color:var(--crit)}
+
+  .loading{padding:50px;text-align:center;color:var(--muted);font-family:'IBM Plex Mono'}
+  .pub-note{font-size:11.5px;color:var(--muted);font-family:'IBM Plex Mono';margin-top:10px}
+  @media(max-width:760px){
+    .gauges{grid-template-columns:repeat(2,1fr)}
+    td input{width:62px}
+  }
+  @media(max-width:480px){
+    .pitem{flex-wrap:wrap}
+    .pqty{width:100%;justify-content:flex-start;margin-left:40px}
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== LOGIN GATE ===== -->
+<div id="gate">
+  <div class="gate-card">
+    <div class="brand">
+      <svg class="drop" viewBox="0 0 24 24" fill="none"><path d="M12 2.5C12 2.5 5 10.2 5 15a7 7 0 0014 0c0-4.8-7-12.5-7-12.5z" fill="#e8a13a"/></svg>
+      <div>
+        <h1>HFO Allocation</h1>
+        <div class="role">Plant Director · Control</div>
+      </div>
+    </div>
+    <label class="fld" for="pw">Director password</label>
+    <input type="password" id="pw" autocomplete="off" placeholder="••••••••">
+    <div style="margin-top:16px"><button class="btn btn-amber" style="width:100%" id="loginBtn">Unlock</button></div>
+    <div class="gate-err" id="gateErr"></div>
+  </div>
+</div>
+
+<!-- ===== APP ===== -->
+<div class="wrap" id="app" style="display:none">
+  <header class="bar">
+    <div class="title">
+      <svg class="drop" viewBox="0 0 24 24" fill="none"><path d="M12 2.5C12 2.5 5 10.2 5 15a7 7 0 0014 0c0-4.8-7-12.5-7-12.5z" fill="#e8a13a"/></svg>
+      <div>
+        <h1>HFO Tank Allocation</h1>
+        <div class="sub">NRCC · TURAIF · DIRECTOR CONTROL</div>
+      </div>
+    </div>
+    <div class="asof">
+      Reading as of<b id="asOf">—</b>
+      <button class="btn btn-ghost" id="refreshBtn" style="margin-top:8px;padding:7px 12px;font-size:12px">Refresh</button>
+    </div>
+  </header>
+
+  <div id="loading" class="loading">Loading tank levels…</div>
+
+  <div id="content" style="display:none">
+    <div class="sect-h">Current tank status</div>
+    <div class="gauges" id="gauges"></div>
+
+    <div class="sect-h">Minimums &amp; refill batches</div>
+    <div class="panel">
+      <table>
+        <thead><tr>
+          <th>Fill point</th><th>Current</th><th>Min level (m)</th><th>Batch (tankers)</th><th>Priority</th>
+        </tr></thead>
+        <tbody id="cfgBody"></tbody>
+      </table>
+    </div>
+    <div class="row-actions">
+      <button class="btn btn-amber" id="saveCfg">Save settings</button>
+      <span class="pub-note">Settings persist and are reused every day until you change them.</span>
+    </div>
+
+    <div class="sect-h">Today's allocation plan</div>
+    <div id="planArea"></div>
+    <div class="row-actions" id="publishRow" style="display:none">
+      <button class="btn btn-amber" id="publishBtn">Publish plan to unloading team</button>
+      <span class="pub-note" id="pubStatus"></span>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/*=================  PASTE YOUR APPS SCRIPT /exec URL HERE  =================*/
+const API_URL = 'https://script.google.com/macros/s/AKfycbxJya6Y7FkN21OF0q3H7tswaSD28fvkW36L8kd1mkU5n37U08_Acw65wSV5P5jg0kvO/exec';
+/*=========================================================================*/
+
+const PW_HASH = 'bd6019be981b37121d018332d8c570bd4d5220568807500fb9bd02fa601f6c75';
+
+/* ---- tank / engine constants (from extraction) ---- */
+const FP = [
+  { id:'FP1', name:'Tank 1', sub:'Power Plant',         tanks:['T1'],      cap:3500,  maxH:9.0,  dead:1.2, defMin:4.50, defBatch:10, defPrio:1 },
+  { id:'FP2', name:'Tank 2+3', sub:'Line-1 Kiln · coupled', tanks:['T2','T3'], cap:7000,  maxH:9.0,  dead:1.2, defMin:2.70, defBatch:10, defPrio:2, coupled:true },
+  { id:'FP4', name:'Tank 4', sub:'Line-2 Kiln',         tanks:['T4'],      cap:11000, maxH:15.0, dead:0.5, defMin:4.50, defBatch:8,  defPrio:3 },
+  { id:'FP5', name:'Tank 5', sub:'Line-1/2 Common',     tanks:['T5'],      cap:10000, maxH:14.3, dead:0.8, defMin:4.29, defBatch:8,  defPrio:4 },
+];
+const DENSITY=0.98, TANKER_T=27, HIGH_ALARM=0.90, HIGH_HIGH=0.95;
+
+let STATE={ asOf:'—', levels:{}, config:null, plan:[] };
+
+/* ---- engine helpers ---- */
+const repLevel=(fp,L)=> fp.coupled ? ((num(L.T2)+num(L.T3))/2) : num(L[fp.tanks[0]]);
+const num=v=> (v==null||isNaN(v))?0:Number(v);
+const volAt=(fp,lvl)=> lvl/fp.maxH*fp.cap;                 // m3
+const lvlAfter=(fp,lvl,n)=> (volAt(fp,lvl)+ n*TANKER_T/DENSITY)/fp.cap*fp.maxH;
+const maxToHA=(fp,lvl)=> Math.max(0, Math.floor((HIGH_ALARM*fp.cap - volAt(fp,lvl))*DENSITY/TANKER_T));
+
+function buildPlan(){
+  if(!STATE.config) return [];
+  const items=[];
+  FP.forEach(fp=>{
+    const c=STATE.config[fp.id]; if(!c) return;
+    const lvl=repLevel(fp,STATE.levels);
+    if(lvl<=Number(c.min)){
+      let batch=Number(c.batch), trimmed=false;
+      if(lvlAfter(fp,lvl,batch) > HIGH_HIGH*fp.maxH){ batch=maxToHA(fp,lvl); trimmed=true; }
+      items.push({fpId:fp.id,name:fp.name,sub:fp.sub,level:lvl,min:Number(c.min),
+                  suggested:Number(c.batch),tankers:batch,trimmed,priority:Number(c.priority)});
+    }
+  });
+  items.sort((a,b)=>a.priority-b.priority);
+  return items;
+}
+
+/* ---- status ---- */
+function statusOf(fp){
+  const lvl=repLevel(fp,STATE.levels);
+  const min=STATE.config?Number(STATE.config[fp.id].min):fp.defMin;
+  if(lvl<=min) return {cls:'crit',txt:'Below minimum'};
+  if(lvl<=min+0.10*fp.maxH) return {cls:'warn',txt:'Near minimum'};
+  if(lvl>=HIGH_HIGH*fp.maxH) return {cls:'warn',txt:'High-High'};
+  return {cls:'ok',txt:'Adequate'};
+}
+
+/* ---- render gauges ---- */
+function renderGauges(){
+  document.getElementById('gauges').innerHTML = FP.map(fp=>{
+    const lvl=repLevel(fp,STATE.levels);
+    const min=STATE.config?Number(STATE.config[fp.id].min):fp.defMin;
+    const pct=Math.max(0,Math.min(100, lvl/fp.maxH*100));
+    const st=statusOf(fp);
+    const tons=Math.max(0,(lvl-fp.dead)/fp.maxH*fp.cap*DENSITY);
+    return `<div class="gcard">
+      <div class="gname">${fp.name}</div><div class="gsub">${fp.sub}</div>
+      <div class="gbody">
+        <div class="tube">
+          <div class="dead" style="height:${fp.dead/fp.maxH*100}%"></div>
+          <div class="fill" style="height:${pct}%"></div>
+          <div class="mark hh" style="bottom:${HIGH_HIGH*100}%"></div>
+          <div class="mark ha" style="bottom:${HIGH_ALARM*100}%"></div>
+          <div class="mark min" style="bottom:${min/fp.maxH*100}%"></div>
+        </div>
+        <div class="greadout">
+          <div class="lvl">${lvl.toFixed(2)}<small> m</small></div>
+          <div class="gmeta">
+            min <span>${min.toFixed(2)}m</span><br>
+            max <span>${fp.maxH.toFixed(1)}m</span><br>
+            stock <span>${Math.round(tons).toLocaleString()} t</span>
+          </div>
+          <div><span class="chip ${st.cls}">${st.txt}</span></div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ---- render settings ---- */
+function renderConfig(){
+  document.getElementById('cfgBody').innerHTML = FP.map(fp=>{
+    const c=STATE.config[fp.id];
+    const lvl=repLevel(fp,STATE.levels);
+    return `<tr data-fp="${fp.id}">
+      <td><div class="tk">${fp.name}<small>${fp.sub}</small></div></td>
+      <td class="mono" style="color:var(--muted)">${lvl.toFixed(2)} m</td>
+      <td><input type="number" step="0.05" min="0" max="${fp.maxH}" class="c-min" value="${c.min}"></td>
+      <td><input type="number" step="1" min="0" class="c-batch" value="${c.batch}"></td>
+      <td><input type="number" step="1" min="1" max="4" class="prio c-prio" value="${c.priority}"></td>
+    </tr>`;
+  }).join('');
+}
+
+/* ---- render plan ---- */
+function renderPlan(){
+  STATE.plan=buildPlan();
+  const area=document.getElementById('planArea');
+  const pubRow=document.getElementById('publishRow');
+  if(STATE.plan.length===0){
+    area.innerHTML=`<div class="panel"><div class="empty"><span class="ok-ico">✓</span>
+      All tanks are above their minimums. No tankers need to be directed today.</div></div>`;
+    pubRow.style.display='flex';
+    return;
+  }
+  area.innerHTML='<div class="plan-list">'+STATE.plan.map((it,i)=>`
+    <div class="pitem">
+      <div class="pno">${i+1}</div>
+      <div class="pmain">
+        <div class="pn">${it.name} <span style="color:var(--muted);font-weight:400;font-size:13px">· ${it.sub}</span></div>
+        <div class="pd">level <b>${it.level.toFixed(2)}m</b> ≤ min <b>${it.min.toFixed(2)}m</b>
+          ${it.trimmed?` · <span class="ptrim">batch trimmed to stay under High-High</span>`:''}</div>
+      </div>
+      <div class="pqty">
+        <label>Tankers</label>
+        <input type="number" min="0" step="1" value="${it.tankers}" data-i="${i}" class="ov">
+        <span class="un">×27t</span>
+      </div>
+    </div>`).join('')+'</div>';
+  area.querySelectorAll('.ov').forEach(inp=>inp.addEventListener('input',e=>{
+    STATE.plan[+e.target.dataset.i].tankers = Math.max(0, parseInt(e.target.value||'0',10));
+  }));
+  pubRow.style.display='flex';
+}
+
+/* ---- data ---- */
+async function loadData(){
+  document.getElementById('loading').style.display='block';
+  document.getElementById('content').style.display='none';
+  try{
+    const r=await fetch(API_URL,{method:'GET'});
+    const d=await r.json();
+    if(!d.ok) throw new Error(d.error||'load failed');
+    STATE.asOf=d.asOf; STATE.levels=d.levels;
+    STATE.config = d.config || defaultConfig();
+    document.getElementById('asOf').textContent=d.asOf;
+    renderGauges(); renderConfig(); renderPlan();
+    document.getElementById('loading').style.display='none';
+    document.getElementById('content').style.display='block';
+  }catch(err){
+    document.getElementById('loading').innerHTML=
+      'Could not reach the data service.<br><span style="color:var(--crit)">'+err.message+
+      '</span><br><br>Check the API_URL in this file and the Apps Script deployment.';
+  }
+}
+function defaultConfig(){
+  const c={}; FP.forEach(fp=>c[fp.id]={min:fp.defMin,batch:fp.defBatch,priority:fp.defPrio}); return c;
+}
+function readConfigFromTable(){
+  document.querySelectorAll('#cfgBody tr').forEach(tr=>{
+    const id=tr.dataset.fp;
+    STATE.config[id]={
+      min:parseFloat(tr.querySelector('.c-min').value)||0,
+      batch:parseInt(tr.querySelector('.c-batch').value||'0',10),
+      priority:parseInt(tr.querySelector('.c-prio').value||'1',10)
+    };
+  });
+}
+async function post(payload){
+  const r=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
+  return r.json();
+}
+async function saveSettings(){
+  readConfigFromTable();
+  const btn=document.getElementById('saveCfg'); btn.disabled=true; btn.textContent='Saving…';
+  try{
+    const d=await post({action:'saveConfig',config:STATE.config});
+    if(!d.ok) throw new Error(d.error);
+    renderGauges(); renderPlan();
+    toast('Settings saved');
+  }catch(e){ toast('Save failed: '+e.message,true); }
+  btn.disabled=false; btn.textContent='Save settings';
+}
+async function publish(){
+  const btn=document.getElementById('publishBtn'); btn.disabled=true; btn.textContent='Publishing…';
+  try{
+    const plan={date:STATE.asOf, publishedAt:new Date().toISOString(),
+      items:STATE.plan.map(i=>({name:i.name,sub:i.sub,tankers:i.tankers,level:i.level,min:i.min}))};
+    const d=await post({action:'publishPlan',plan});
+    if(!d.ok) throw new Error(d.error);
+    document.getElementById('pubStatus').textContent='Published '+new Date().toLocaleTimeString()+' — visible to unloading team.';
+    toast('Plan published to unloading team');
+  }catch(e){ toast('Publish failed: '+e.message,true); }
+  btn.disabled=false; btn.textContent='Publish plan to unloading team';
+}
+
+/* ---- toast ---- */
+let tTimer;
+function toast(msg,err){
+  const t=document.getElementById('toast'); t.textContent=msg; t.className='show'+(err?' err':'');
+  clearTimeout(tTimer); tTimer=setTimeout(()=>t.className='',2800);
+}
+
+/* ---- login ---- */
+async function sha256(s){
+  const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));
+  return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+async function tryLogin(){
+  const v=document.getElementById('pw').value;
+  if(await sha256(v)===PW_HASH){
+    document.getElementById('gate').style.display='none';
+    document.getElementById('app').style.display='block';
+    loadData();
+  }else{
+    document.getElementById('gateErr').textContent='Incorrect password.';
+    document.getElementById('pw').value='';
+  }
+}
+document.getElementById('loginBtn').addEventListener('click',tryLogin);
+document.getElementById('pw').addEventListener('keydown',e=>{if(e.key==='Enter')tryLogin();});
+document.getElementById('saveCfg').addEventListener('click',saveSettings);
+document.getElementById('publishBtn').addEventListener('click',publish);
+document.getElementById('refreshBtn').addEventListener('click',loadData);
+window.addEventListener('load',()=>document.getElementById('pw').focus());
+</script>
+</body>
+</html>
