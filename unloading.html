@@ -114,7 +114,7 @@
   <div id="list" class="list"></div>
 
   <div class="foot">
-    <span class="legend">Ticks are for your own tracking only — nothing is sent back.</span>
+    <span class="legend">Ticks are local only — nothing is sent back. · Auto-refreshes every 3 min.</span>
     <button class="btn btn-ghost" id="refreshBtn" style="padding:8px 14px;font-size:12px">Refresh</button>
   </div>
 </div>
@@ -148,7 +148,7 @@ function render(asOf, plan){
   if(!plan){
     list.innerHTML=`<div class="empty"><span class="ico wait">⏳</span>
       <div class="et">No plan published yet</div>
-      <div class="es">The Plant Director has not published instructions for<br><b style="color:var(--ink)">${asOf}</b> yet. Pull to refresh shortly.</div></div>`;
+      <div class="es">No instructions for <b style="color:var(--ink)">${asOf}</b> yet.<br>The plan auto-publishes when today's data arrives — this page refreshes automatically every 3 min.</div></div>`;
     return;
   }
   if(!plan.items || plan.items.length===0){
@@ -184,6 +184,7 @@ async function tryLogin(){
     document.getElementById('gate').style.display='none';
     document.getElementById('app').style.display='block';
     loadPlan();
+    setInterval(loadPlan, 3 * 60 * 1000);
   }else{
     document.getElementById('gateErr').textContent='Incorrect password.';
     document.getElementById('pw').value='';
