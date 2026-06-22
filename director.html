@@ -181,7 +181,7 @@
     <div class="sect-h">Current tank status</div>
     <div class="gauges" id="gauges"></div>
 
-    <div class="sect-h">Minimums &amp; refill batches</div>
+    <div class="sect-h">Standing orders — minimums &amp; batch sizes</div>
     <div class="panel">
       <table>
         <thead><tr>
@@ -191,15 +191,16 @@
       </table>
     </div>
     <div class="row-actions">
-      <button class="btn btn-amber" id="saveCfg">Save settings</button>
-      <span class="pub-note">Settings persist and are reused every day until you change them.</span>
+      <button class="btn btn-amber" id="saveCfg">Save standing orders</button>
+      <span class="pub-note">These are used every day to auto-publish the plan — change only when needed.</span>
     </div>
 
-    <div class="sect-h">Today's allocation plan</div>
+    <div class="sect-h">Today's published plan</div>
+    <div id="autoPubStatus" class="pub-note" style="margin:0 0 14px"></div>
     <div id="planArea"></div>
     <div class="row-actions" id="publishRow" style="display:none">
-      <button class="btn btn-amber" id="publishBtn">Publish plan to unloading team</button>
-      <span class="pub-note" id="pubStatus"></span>
+      <button class="btn btn-ghost" id="publishBtn">Force-publish now</button>
+      <span class="pub-note" id="pubStatus">Plan auto-publishes daily — use this only to send an override mid-day.</span>
     </div>
   </div>
 </div>
@@ -222,7 +223,7 @@ const FP = [
 ];
 const DENSITY=0.98, TANKER_T=27, HIGH_ALARM=0.90, HIGH_HIGH=0.95;
 
-let STATE={ asOf:'—', levels:{}, config:null, plan:[] };
+let STATE={ asOf:'—', levels:{}, config:null, plan:[], todayPlan:null };
 
 /* ---- engine helpers ---- */
 const repLevel=(fp,L)=> fp.coupled ? ((num(L.T2)+num(L.T3))/2) : num(L[fp.tanks[0]]);
@@ -346,8 +347,19 @@ async function loadData(){
     if(!d.ok) throw new Error(d.error||'load failed');
     STATE.asOf=d.asOf; STATE.levels=d.levels;
     STATE.config = d.config || defaultConfig();
+    STATE.todayPlan = d.todayPlan || null;
     document.getElementById('asOf').textContent=d.asOf;
     renderGauges(); renderConfig(); renderPlan();
+    const aps=document.getElementById('autoPubStatus');
+    if(STATE.todayPlan){
+      const t=new Date(STATE.todayPlan.publishedAt);
+      const how=STATE.todayPlan.autoPublished?'Auto-published':'Published';
+      aps.textContent=how+' today at '+t.toLocaleTimeString()+' — visible to unloading team.';
+      aps.style.color=STATE.todayPlan.autoPublished?'var(--ok)':'var(--hfo)';
+    }else{
+      aps.textContent='Not yet published today — will auto-publish when today\'s level data arrives.';
+      aps.style.color='var(--muted)';
+    }
     document.getElementById('loading').style.display='none';
     document.getElementById('content').style.display='block';
   }catch(err){
@@ -387,11 +399,15 @@ async function saveSettings(){
 async function publish(){
   const btn=document.getElementById('publishBtn'); btn.disabled=true; btn.textContent='Publishing…';
   try{
-    const plan={date:STATE.asOf, publishedAt:new Date().toISOString(),
+    const plan={date:STATE.asOf, publishedAt:new Date().toISOString(), manual:true,
       items:STATE.plan.map(i=>({name:i.name,sub:i.sub,tankers:i.tankers,level:i.level,min:i.min}))};
     const d=await post({action:'publishPlan',plan});
     if(!d.ok) throw new Error(d.error);
-    document.getElementById('pubStatus').textContent='Published '+new Date().toLocaleTimeString()+' — visible to unloading team.';
+    const now=new Date().toLocaleTimeString();
+    document.getElementById('pubStatus').textContent='Override sent.';
+    const aps=document.getElementById('autoPubStatus');
+    aps.textContent='Published (manual override) today at '+now+' — visible to unloading team.';
+    aps.style.color='var(--hfo)';
     toast('Plan published to unloading team');
   }catch(e){ toast('Publish failed: '+e.message,true); }
   btn.disabled=false; btn.textContent='Publish plan to unloading team';
