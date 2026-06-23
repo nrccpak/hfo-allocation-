@@ -2,46 +2,54 @@
  * HFO AUTO-PUBLISH — Add this function to your Google Apps Script project.
  *
  * SETUP (one-time):
- *   1. Paste this function into your Apps Script editor.
+ *   1. Paste this function into your existing Apps Script file (below the doGet/doPost code).
  *   2. Set a daily time-driven trigger:
  *        Apps Script Editor → Triggers (clock icon) → Add Trigger
  *        Function: autoPublish
  *        Deployment: Head
  *        Event source: Time-driven → Day timer
- *        Time: choose the hour when your tank level data is typically available
+ *        Time: choose the hour when your CSV data is typically updated
  *
- * That's it. Every day when the trigger fires:
- *   - It reads the current levels (same as your doGet handler)
- *   - It reads the Director's saved standing orders (config)
- *   - It builds the allocation plan using the same logic as director.html
- *   - It saves the plan as the published plan (visible to the unloading team immediately)
- *
- * The Plant Director only needs to open director.html when they want to
- * change a minimum level, batch size, or priority — not every day.
- *
- * The Director can still use "Force-publish now" in director.html for
- * mid-day overrides; those plans are stored with manual:true instead of
- * autoPublished:true so the UI can distinguish them.
+ * Every day when the trigger fires it reads the CSV, builds the plan from the
+ * Director's saved standing orders, and saves it — the unloading page shows it
+ * automatically within 3 minutes (or instantly on manual Refresh).
  */
 
 function autoPublish() {
   const props = PropertiesService.getScriptProperties();
 
-  // Get Director's saved standing orders
-  const cfgJson = props.getProperty('hfo_config');
+  // Read Director's saved standing orders (same key as writeConfig_)
+  const cfgJson = props.getProperty('alloc_config');
   if (!cfgJson) {
-    Logger.log('autoPublish: no config saved yet — nothing to do.');
+    Logger.log('autoPublish: no config saved yet — Director must save standing orders first.');
     return;
   }
   const config = JSON.parse(cfgJson);
 
-  // ─── GET CURRENT LEVELS ────────────────────────────────────────────────────
-  // Replace the line below with your existing call that returns tank levels.
-  // It must return an object like: { T1: 5.2, T2: 3.1, T3: 3.0, T4: 7.8, T5: 6.5 }
-  const levels = getLevelsFromSheet(); // ← adjust to match your existing code
-  // ──────────────────────────────────────────────────────────────────────────
+  // Read levels from CSV — same logic as doGet()
+  const file = DriveApp.getFileById(MASTER_CSV_ID);
+  const text = file.getBlob().getDataAsString('UTF-8');
+  const rows = parseCSV_(text);
+  if (rows.length < 2) {
+    Logger.log('autoPublish: CSV has no data rows yet — nothing to publish.');
+    return;
+  }
+  const headers = rows[0];
+  const lastRow = rows[rows.length - 1];
+  const idx = function(h) { return headers.indexOf(h); };
 
-  const asOf = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  // Use the date FROM the CSV so it matches what readPlanForDate_ checks
+  const asOf = String(lastRow[idx(DATE_COL)] || '').trim().slice(0, 10);
+  const levels = {};
+  Object.keys(LEVEL_COLS).forEach(function(t) {
+    const v = lastRow[idx(LEVEL_COLS[t])];
+    levels[t] = (v === '' || v == null) ? null : Number(v);
+  });
+
+  if (!asOf) {
+    Logger.log('autoPublish: date column missing or empty in CSV.');
+    return;
+  }
 
   // Build plan — mirrors buildPlan() in director.html exactly
   const DENSITY = 0.98, TANKER_T = 27, HIGH_ALARM = 0.90, HIGH_HIGH = 0.95;
@@ -74,7 +82,7 @@ function autoPublish() {
   });
   items.sort(function(a, b) { return a.priority - b.priority; });
 
-  // Save as published plan
+  // Save using the same key as writePlan_() so readPlanForDate_() finds it
   const plan = {
     date: asOf,
     publishedAt: new Date().toISOString(),
@@ -83,7 +91,7 @@ function autoPublish() {
       return { name:i.name, sub:i.sub, tankers:i.tankers, level:i.level, min:i.min };
     })
   };
-  props.setProperty('hfo_plan', JSON.stringify(plan));
+  props.setProperty('alloc_plan', JSON.stringify(plan));
 
   Logger.log('autoPublish: done for ' + asOf + ' — ' + items.length + ' tank(s) need refill.');
 }
